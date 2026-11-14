@@ -1,11 +1,6 @@
-using AgendaNutricionistaApi.Data;
-using AgendaNutricionistaApi.DTOs;
-using AgendaNutricionistaApi.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using AgendaNutricionistaApi.Models;
+using AgendaNutricionistaApi.Repositories;
 
 namespace AgendaNutricionistaApi.Controllers
 {
@@ -13,110 +8,47 @@ namespace AgendaNutricionistaApi.Controllers
     [ApiController]
     public class PatientsController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IPatientRepository _patientRepository;
 
-        public PatientsController(ApplicationDbContext context)
+        public PatientsController(IPatientRepository patientRepository)
         {
-            _context = context;
+            _patientRepository = patientRepository;
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<PatientDto>>> GetPatients()
+        public async Task<ActionResult<IEnumerable<Patient>>> GetPatients()
         {
-            return await _context.Patients
-                .Select(p => new PatientDto
-                {
-                    Id = p.Id,
-                    FirstName = p.FirstName,
-                    LastName = p.LastName,
-                    IdentificationCard = p.IdentificationCard,
-                    PhoneNumber = p.PhoneNumber,
-                    Email = p.Email
-                }).ToListAsync();
+            var patients = await _patientRepository.GetAllAsync();
+            return Ok(patients);
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<PatientDto>> GetPatient(int id)
+        public async Task<ActionResult<Patient>> GetPatient(int id)
         {
-            var patient = await _context.Patients.FindAsync(id);
-
-            if (patient == null)
-            {
-                return NotFound();
-            }
-
-            return new PatientDto
-            {
-                Id = patient.Id,
-                FirstName = patient.FirstName,
-                LastName = patient.LastName,
-                IdentificationCard = patient.IdentificationCard,
-                PhoneNumber = patient.PhoneNumber,
-                Email = patient.Email
-            };
+            var patient = await _patientRepository.GetByIdAsync(id);
+            if (patient == null) return NotFound();
+            return Ok(patient);
         }
 
         [HttpPost]
-        public async Task<ActionResult<PatientDto>> CreatePatient(CreatePatientDto dto)
+        public async Task<ActionResult<Patient>> PostPatient(Patient patient)
         {
-            var patient = new Patient
-            {
-                FirstName = dto.FirstName,
-                LastName = dto.LastName,
-                IdentificationCard = dto.IdentificationCard,
-                PhoneNumber = dto.PhoneNumber,
-                Email = dto.Email
-            };
-
-            _context.Patients.Add(patient);
-            await _context.SaveChangesAsync();
-
-            var result = new PatientDto
-            {
-                Id = patient.Id,
-                FirstName = patient.FirstName,
-                LastName = patient.LastName,
-                IdentificationCard = patient.IdentificationCard,
-                PhoneNumber = patient.PhoneNumber,
-                Email = patient.Email
-            };
-
-            return CreatedAtAction(nameof(GetPatient), new { id = patient.Id }, result);
+            await _patientRepository.AddAsync(patient);
+            return CreatedAtAction(nameof(GetPatient), new { id = patient.Id }, patient);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdatePatient(int id, CreatePatientDto dto)
+        public async Task<IActionResult> PutPatient(int id, Patient patient)
         {
-            var patient = await _context.Patients.FindAsync(id);
-
-            if (patient == null)
-            {
-                return NotFound();
-            }
-
-            patient.FirstName = dto.FirstName;
-            patient.LastName = dto.LastName;
-            patient.IdentificationCard = dto.IdentificationCard;
-            patient.PhoneNumber = dto.PhoneNumber;
-            patient.Email = dto.Email;
-
-            await _context.SaveChangesAsync();
-
+            if (id != patient.Id) return BadRequest();
+            await _patientRepository.UpdateAsync(patient);
             return NoContent();
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePatient(int id)
         {
-            var patient = await _context.Patients.FindAsync(id);
-            if (patient == null)
-            {
-                return NotFound();
-            }
-
-            _context.Patients.Remove(patient);
-            await _context.SaveChangesAsync();
-
+            await _patientRepository.DeleteAsync(id);
             return NoContent();
         }
     }
